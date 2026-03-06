@@ -17,7 +17,7 @@ import {
 } from "../services/api";
 import { Drama } from "../types/drama";
 import { StatusBar } from "expo-status-bar";
-
+import Swiper from "react-native-swiper";
 
 type TabType = "vip" | "latest" | "trending" | "foryou";
 
@@ -85,46 +85,52 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }, [activeTab]);
 
   useEffect(() => {
-    fetchAll();
-  }, []);
-
-  useEffect(() => {
     if (activeTab === "foryou" && forYouDramas.length === 0) {
       fetchForYou();
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    fetchAll();
+    // Memanggil fetchTrending di awal rendering agar Slider selalu terisi data
+    fetchTrending();
+  }, []);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchAll();
+    fetchTrending();
+    if (activeTab === "foryou") {
+      fetchForYou();
+    }
   };
 
   const currentData =
     activeTab === "vip"
       ? vipDramas
       : activeTab === "latest"
-      ? latestDramas
-      : activeTab === "trending"
-      ? trendingDramas
-      : forYouDramas;
+        ? latestDramas
+        : activeTab === "trending"
+          ? trendingDramas
+          : forYouDramas;
 
   const currentTabTitle =
     activeTab === "vip"
       ? "🔥 VIP Drama"
       : activeTab === "latest"
-      ? "🆕 Drama Terbaru"
-      : activeTab === "trending"
-      ? "📈 Drama Populer"
-      : "✨ Rekomendasi Untukmu";
+        ? "🆕 Drama Terbaru"
+        : activeTab === "trending"
+          ? "📈 Drama Populer"
+          : "✨ Rekomendasi Untukmu";
 
   const currentSubtitle =
     activeTab === "vip"
       ? "Drama premium eksklusif untuk member VIP"
       : activeTab === "latest"
-      ? "Drama baru yang baru saja dirilis"
-      : activeTab === "trending"
-      ? "Drama paling populer saat ini"
-      : "Drama yang cocok untuk seleramu";
+        ? "Drama baru yang baru saja dirilis"
+        : activeTab === "trending"
+          ? "Drama paling populer saat ini"
+          : "Drama yang cocok untuk seleramu";
 
   if (loading && !refreshing) {
     return (
@@ -186,7 +192,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" backgroundColor="#FFFFFF" />
 
       {/* HEADER */}
       <View style={styles.header}>
@@ -221,76 +227,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* TAB SELECTOR */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.tabScrollContainer}
-        contentContainerStyle={styles.tabContentContainer}
-      >
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "vip" && styles.activeTab]}
-          onPress={() => setActiveTab("vip")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "vip" && styles.activeTabText,
-            ]}
-          >
-            🔥 VIP ({vipDramas.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "latest" && styles.activeTab]}
-          onPress={() => setActiveTab("latest")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "latest" && styles.activeTabText,
-            ]}
-          >
-            🆕 Latest ({latestDramas.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tabButton,
-            activeTab === "trending" && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab("trending")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "trending" && styles.activeTabText,
-            ]}
-          >
-            📈 Trending ({trendingDramas.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === "foryou" && styles.activeTab]}
-          onPress={() => setActiveTab("foryou")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "foryou" && styles.activeTabText,
-            ]}
-          >
-            ✨ For You ({forYouDramas.length})
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* CONTENT */}
+      {/* CONTENT WITH SLIDER & TABS */}
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -300,6 +242,129 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           />
         }
       >
+        {/* HERO SLIDER (Ikut Terscroll) */}
+        <View style={{ zIndex: 0 }}>
+          {trendingDramas.length > 0 && (
+            <View style={styles.sliderContainer}>
+              <Swiper
+                autoplay
+                autoplayTimeout={4}
+                showsPagination={true}
+                dotStyle={styles.dot}
+                activeDotStyle={styles.activeDot}
+              >
+                {trendingDramas.slice(0, 5).map((item) => (
+                  <TouchableOpacity
+                    key={item.bookId}
+                    style={styles.slide}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      navigation.navigate("Episode", {
+                        bookId: item.bookId,
+                        title: item.bookName,
+                      })
+                    }
+                  >
+                    {/* Efek simetris gambar potrait - menggunakan warna bg gelap & resizeMode "contain" vertikal */}
+                    <View style={styles.imageWrapper}>
+                      <Image
+                        source={{ uri: item.coverWap }}
+                        style={styles.slideImgPortrait}
+                      />
+                    </View>
+                    <View style={styles.slideOverlay}>
+                      <Text style={styles.slideTitle} numberOfLines={1}>
+                        {item.bookName}
+                      </Text>
+                      <Text style={styles.slideSubtitle}>
+                        {item.chapterCount} Episode
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </Swiper>
+            </View>
+          )}
+        </View>
+
+        {/* TAB SELECTOR (Sticky - Tertahan Saat Mentok Atas) */}
+        <View style={{ backgroundColor: "#000000", zIndex: 10 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabScrollContainer}
+            contentContainerStyle={styles.tabContentContainer}
+          >
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "vip" && styles.activeTab,
+              ]}
+              onPress={() => setActiveTab("vip")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "vip" && styles.activeTabText,
+                ]}
+              >
+                🔥 VIP ({vipDramas.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "latest" && styles.activeTab,
+              ]}
+              onPress={() => setActiveTab("latest")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "latest" && styles.activeTabText,
+                ]}
+              >
+                🆕 Latest ({latestDramas.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "trending" && styles.activeTab,
+              ]}
+              onPress={() => setActiveTab("trending")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "trending" && styles.activeTabText,
+                ]}
+              >
+                📈 Trending ({trendingDramas.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === "foryou" && styles.activeTab,
+              ]}
+              onPress={() => setActiveTab("foryou")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "foryou" && styles.activeTabText,
+                ]}
+              >
+                ✨ For You ({forYouDramas.length})
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{currentTabTitle}</Text>
           <Text style={styles.sectionSubtitle}>{currentSubtitle}</Text>
@@ -336,21 +401,24 @@ export default HomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000000",
+    backgroundColor: "#FFFFFF",
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#000000",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    backgroundColor: "#000000",
+    backgroundColor: "#FFFFFF",
     paddingTop: 50,
     paddingHorizontal: 16,
     paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#222222",
+    elevation: 2, // Bayangan tipis di Android
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   headerTop: {
     flexDirection: "row",
@@ -358,14 +426,14 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   headerTitle: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 22,
     fontWeight: "700",
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#F2F4F7",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -375,29 +443,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   tabScrollContainer: {
-    maxHeight: 42,
-    backgroundColor: "#000000",
-    borderBottomWidth: 1,
-    borderBottomColor: "#222222",
+    maxHeight: 48,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 8,
   },
   tabContentContainer: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
     gap: 8,
   },
   tabButton: {
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: "#1A1A1A",
+    backgroundColor: "#F2F4F7",
     height: 32,
     justifyContent: "center",
   },
   activeTab: {
-    backgroundColor: "#333333",
+    backgroundColor: "#FF4757",
   },
   tabText: {
-    color: "#888888",
+    color: "#4B5563",
     fontSize: 12,
     fontWeight: "600",
   },
@@ -413,21 +479,83 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 4,
   },
   sectionSubtitle: {
-    color: "#888888",
+    color: "#666666",
     fontSize: 12,
   },
+
+  /* SLIDER STYLES (Potret Simetris) */
+  sliderContainer: {
+    height: 380, // Mengakomodasi poster panjang
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 25,
+  },
+  slide: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  imageWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E5E7EB", // latar abu soft jika gambar tak penuh
+  },
+  slideImgPortrait: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+    opacity: 1,
+  },
+  slideOverlay: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  slideTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  slideSubtitle: {
+    color: "#ccc",
+    fontSize: 12,
+  },
+  dot: {
+    backgroundColor: "rgba(0,0,0,0.2)",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 3,
+    marginBottom: -20,
+  },
+  activeDot: {
+    backgroundColor: "#FF4757",
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 3,
+    marginBottom: -20,
+  },
+
   dramaListContainer: {
     marginHorizontal: 16,
-    backgroundColor: "#111111",
-    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     overflow: "hidden",
     marginBottom: 20,
+    borderColor: "#EEEEEE",
+    borderWidth: 1,
   },
   dramaCard: {
     paddingVertical: 12,
@@ -466,14 +594,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dramaTitle: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 15,
     fontWeight: "600",
     marginBottom: 4,
     lineHeight: 20,
   },
   badgeContainer: {
-    backgroundColor: "#222222",
+    backgroundColor: "#F2F4F7",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 4,
@@ -481,7 +609,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   badgeText: {
-    color: "#AAAAAA",
+    color: "#666666",
     fontSize: 10,
     fontWeight: "500",
   },
@@ -496,7 +624,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: "#222222",
+    backgroundColor: "#F2F4F7",
     marginLeft: 36,
     marginTop: 12,
   },
@@ -525,12 +653,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 30,
     padding: 10,
-    backgroundColor: "#111111",
+    backgroundColor: "#F9FAFB",
     borderRadius: 8,
     alignItems: "center",
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
   },
   totalText: {
-    color: "#888888",
+    color: "#6B7280",
     fontSize: 12,
   },
   logo: {
