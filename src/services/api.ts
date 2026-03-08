@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import axiosRetry from "axios-retry";
 import { VipResponse } from "../types/drama";
 import { Episode } from "../types/episode";
@@ -10,12 +10,12 @@ const api = axios.create({
 
 // Konfigurasi axios-retry
 axiosRetry(api, {
-  retries: 3, // Coba lagi maksimal 3 kali 
-  retryDelay: (retryCount) => {
+  retries: 3, // Coba lagi maksimal 3 kali
+  retryDelay: (retryCount: number) => {
     console.log(`[API RETRY] Menunggu server... Percobaan ke-${retryCount}`);
     return retryCount * 2000; // jeda 2 detik, 4 detik, dst.
   },
-  retryCondition: (error) => {
+  retryCondition: (error: AxiosError) => {
     // Jalankan retry jika status 429 atau 5xx
     const status = error.response?.status;
     return (
@@ -33,13 +33,16 @@ axiosRetry(api, {
 const CACHE_EXPIRATION_MS = 1000 * 60 * 5; // 5 Menit
 const cache: Record<string, { data: any; timestamp: number }> = {};
 
-const fetchWithCache = async <T>(url: string, fetcher: () => Promise<T>): Promise<T> => {
+const fetchWithCache = async <T>(
+  url: string,
+  fetcher: () => Promise<T>,
+): Promise<T> => {
   const now = Date.now();
   if (cache[url] && now - cache[url].timestamp < CACHE_EXPIRATION_MS) {
     console.log(`[CACHE HIT] Mengambil ${url} dari Memori lokal`);
     return cache[url].data;
   }
-  
+
   const data = await fetcher();
   cache[url] = { data, timestamp: now };
   return data;
@@ -54,7 +57,9 @@ export const getVipDrama = async (): Promise<VipResponse> => {
 
 export const getAllEpisodes = async (bookId: string): Promise<Episode[]> => {
   return fetchWithCache(`/dramabox/allepisode?bookId=${bookId}`, async () => {
-    const res = await api.get<Episode[]>(`/dramabox/allepisode?bookId=${bookId}`);
+    const res = await api.get<Episode[]>(
+      `/dramabox/allepisode?bookId=${bookId}`,
+    );
     return res.data;
   });
 };
@@ -94,7 +99,3 @@ export const getDetailDrama = async (bookId: string) => {
     return res.data;
   });
 };
-
-
-
-
