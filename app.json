@@ -7,7 +7,6 @@
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "android": {
       "package": "com.takaduarr.mydrama",
       "versionCode": 2,
@@ -16,21 +15,20 @@
         "backgroundColor": "#000000"
       }
     },
-
     "ios": {
       "supportsTablet": true
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "extra": {
       "eas": {
         "projectId": "f785e29f-142b-4320-be93-84f30e9ee52c"
       }
     },
-
-    "owner": "taka-duarr"
+    "owner": "taka-duarr",
+    "plugins": [
+      "expo-video"
+    ]
   }
 }

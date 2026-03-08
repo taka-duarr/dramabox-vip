@@ -60,14 +60,21 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
 
           // Memilih Ikon
           let iconSource;
-          if (route.name === "HomeTab")
+          let iconSize = 22; // Kecilkan Home karena proporsi asli gambarnya dominan besar dan minim padding/margin transparan di dalamnya
+
+          if (route.name === "HomeTab") {
             iconSource = require("./assets/home.png");
-          else if (route.name === "ExploreTab")
+            iconSize = 22;
+          } else if (route.name === "ExploreTab") {
             iconSource = require("./assets/explore.png");
-          else if (route.name === "MyListTab")
+            iconSize = 36; // Perbesar agar seimbang dengan Home
+          } else if (route.name === "MyListTab") {
             iconSource = require("./assets/bookmark.png");
-          else if (route.name === "ProfileTab")
+            iconSize = 36; 
+          } else if (route.name === "ProfileTab") {
             iconSource = require("./assets/profile.png");
+            iconSize = 40; // Perbesar extra profile karena kanvasnya ternyata super kecil/jauh dari sisi margin
+          }
 
           return (
             <TouchableOpacity
@@ -86,7 +93,11 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                   source={iconSource}
                   style={[
                     styles.icon,
-                    { tintColor: isFocused ? "#FF4757" : "#888888" },
+                    { 
+                      tintColor: isFocused ? "#FF4757" : "#888888",
+                      width: iconSize,
+                      height: iconSize
+                    },
                   ]}
                 />
               </Animated.View>
@@ -160,8 +171,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   icon: {
-    width: 26,
-    height: 26,
     resizeMode: "contain",
   },
   activeIndicator: {

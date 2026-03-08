@@ -15,7 +15,8 @@ import { Episode } from "../types/episode";
 import { StatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { useKeepAwake } from "expo-keep-awake";
-import { Video, AVPlaybackStatus, ResizeMode } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
 
 
 
@@ -35,114 +36,125 @@ const [showQualityModal, setShowQualityModal] = useState(false);
 
   const [currentEpisode, setCurrentEpisode] = useState<Episode>(episode);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState("0:00");
-  const [totalTime, setTotalTime] = useState("0:00");
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(true);
-  const [durationMillis, setDurationMillis] = useState(0);
-  const [positionMillis, setPositionMillis] = useState(0);
 
-  const videoRef = useRef<Video>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const progressBarRef = useRef<View>(null);
+  const lastTapRef = useRef<number>(0);
 
-const currentVideo =
-  currentEpisode.cdnList[0].videoPathList.find(
-    (v) => v.quality === selectedQuality
-  ) ?? currentEpisode.cdnList[0].videoPathList[0];
+  const currentVideo =
+    currentEpisode.cdnList[0].videoPathList.find(
+      (v) => v.quality === selectedQuality
+    ) ?? currentEpisode.cdnList[0].videoPathList[0];
+
+  // Inisialisasi Player Video Modern tanpa Rerender Ulang Objek
+  const player = useVideoPlayer(currentVideo.videoPath, (player) => {
+    player.loop = false;
+    player.muted = false;
+    player.volume = 1.0;
+    player.play();
+  });
+
+  // Saat kualitas berubah atau episode beda, gunakan replace() agar Native Object tidak hancur
+  useEffect(() => {
+    const backupPos = player.currentTime; // Simpan durasi terakhir sebelum ditarik
+    player.replace(currentVideo.videoPath); // Secara ajaib load Source tanpa membunuh Player
+    
+    // Geser instan kembali ke menit terakhir secara aman
+    if (backupPos > 0) {
+       player.currentTime = backupPos;
+    }
+    
+    // Paksa nyalakan ulang suara yang kerap direset oleh modul Native pasca Replace!
+    player.muted = false;
+    player.volume = 1.0;
+
+    player.play();
+  }, [currentVideo.videoPath]);
+
+  // Event Listener Real-Time tanpa Lag/Buffering berat (expo terbaru)
+  const { isPlaying: playerIsPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  
+  // Karena hook event native tidak me-Rerender State UI setiap detik (hanya trigger under-the-hood expo)
+  // Kita hubungkan ke State lokal dengan interval saat video Play
+  const [positionMillis, setPositionMillis] = useState<number>(0);
+  const [durationMillis, setDurationMillis] = useState<number>(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setPositionMillis(player.currentTime);
+        setDurationMillis(player.duration || 0);
+      }, 500); // UI Rerender setiap 500ms agar bar maju mulus
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, player]);
+  
+  // Hitung persentase progress
+  const progress = durationMillis > 0 ? positionMillis / durationMillis : 0;
+  const currentTime = formatTime(positionMillis * 1000); // fungsi kita butuh hitungan ms
+  const totalTime = formatTime(durationMillis * 1000);
+
+  // Status sinkron PlayPause ke state lokal
+  useEffect(() => {
+    setIsPlaying(playerIsPlaying);
+  }, [playerIsPlaying]);
+
+  // Efek ganti episode saat duration mentok selesai (End of video)
+  useEffect(() => {
+    if (durationMillis > 0 && positionMillis >= durationMillis - 0.5) { // toleransi milisekon kecil
+        playNextEpisode();
+    }
+  }, [positionMillis, durationMillis]);
 
   // Format waktu
-  const formatTime = (millis: number) => {
+  function formatTime(millis: number) {
     if (!millis || millis < 0) return "0:00";
     const totalSeconds = Math.floor(millis / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-  };
+  }
 
   // Fungsi untuk reset timer auto-hide
   const resetAutoHideTimer = () => {
-    // Tampilkan controls
     setShowControls(true);
-
-    // Clear timeout yang lama
-    if (hideControlsTimeout.current) {
-      clearTimeout(hideControlsTimeout.current);
-    }
-
-    // Set timeout baru untuk hide setelah 3 detik
+    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
     hideControlsTimeout.current = setTimeout(() => {
       setShowControls(false);
-    }, 3000);
-  };
-
-  // Handler untuk update status video
-  const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
-    if (status.isLoaded) {
-      // Update waktu saat ini
-      const currentMillis = status.positionMillis;
-      setPositionMillis(currentMillis);
-      setCurrentTime(formatTime(currentMillis));
-
-      // Update total durasi
-      if (status.durationMillis) {
-        setDurationMillis(status.durationMillis);
-        setTotalTime(formatTime(status.durationMillis));
-
-        // Update progress
-        const progressValue = currentMillis / status.durationMillis;
-        setProgress(progressValue);
-      }
-
-      // Update status play/pause
-      setIsPlaying(status.isPlaying);
-
-      if (status.didJustFinish) {
-        playNextEpisode();
-      }
-    }
+    }, 4000); // 4 detik 
   };
 
   // Toggle play/pause
-  const togglePlayPause = async () => {
-    const status = await videoRef.current?.getStatusAsync();
-    if (status?.isLoaded) {
-      if (status.isPlaying) {
-        await videoRef.current?.pauseAsync();
-        setIsPlaying(false);
-      } else {
-        await videoRef.current?.playAsync();
-        setIsPlaying(true);
-      }
-      resetAutoHideTimer();
+  const togglePlayPause = () => {
+    if (playerIsPlaying) {
+      player.pause();
+    } else {
+      player.play();
     }
+    resetAutoHideTimer();
   };
 
   // Handler untuk tap di progress bar
-  const handleProgressBarTap = async (event: any) => {
-    if (videoRef.current && progressBarRef.current && durationMillis > 0) {
-      // Dapatkan posisi tap relatif terhadap progress bar
+  const handleProgressBarTap = (event: any) => {
+    if (progressBarRef.current && durationMillis > 0) {
       progressBarRef.current.measure(
         (x, y, barWidth, barHeight, pageX, pageY) => {
           const tapX = event.nativeEvent.pageX - pageX;
           const progressPercentage = Math.max(0, Math.min(1, tapX / barWidth));
+          const seekTime = progressPercentage * durationMillis; // hitungan satuan second (s)
 
-          const seekTime = progressPercentage * durationMillis;
-
-          // Update UI
-          setProgress(progressPercentage);
-          setPositionMillis(seekTime);
-          setCurrentTime(formatTime(seekTime));
-
-          // Seek video
-          videoRef.current?.setPositionAsync(seekTime);
+          // Seek video instan dari modul modern
+          player.currentTime = seekTime;
           resetAutoHideTimer();
         }
       );
     }
   };
-  const playNextEpisode = async () => {
+
+  const playNextEpisode = () => {
     const currentIndex = episodes.findIndex(
       (ep) => ep.chapterId === currentEpisode.chapterId
     );
@@ -153,34 +165,45 @@ const currentVideo =
 
       setCurrentEpisode(nextEpisode);
 
-      // Reset UI
-      setProgress(0);
-      setCurrentTime("0:00");
+      // Reset auto-play next episode (player will reactive immediately due to mount effect)
       setPositionMillis(0);
-      setIsPlaying(true);
-
-      // Reset video
-      await videoRef.current?.setPositionAsync(0);
-      await videoRef.current?.playAsync();
-
       resetAutoHideTimer();
     } else {
       // Episode terakhir
-      setIsPlaying(false);
+      player.pause();
       setShowControls(true);
     }
   };
 
 
-  // Handler untuk tap di layar
-  const handleScreenTap = () => {
-    // Jika controls sedang tidak ditampilkan, tampilkan dan set timer
-    if (!showControls) {
+  // Handler untuk tap di layar (Single Tap & Double Tap Seek)
+  const handleScreenTap = (event: any) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    const tapX = event.nativeEvent.pageX;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // DOUBLE TAP: Cek sisi mana layar ditekan
+      if (tapX < width / 2) {
+        // Sisi Kiri -> Mundur 10 detik
+        player.currentTime = Math.max(0, player.currentTime - 10);
+      } else {
+        // Sisi Kanan -> Maju 10 detik
+        const dest = player.currentTime + 10;
+        player.currentTime = (durationMillis > 0 && dest > durationMillis) ? durationMillis : dest;
+      }
+      lastTapRef.current = 0; // reset hitungan
       setShowControls(true);
       resetAutoHideTimer();
     } else {
-      // Jika sudah ditampilkan, reset timer saja
-      resetAutoHideTimer();
+      // SINGLE TAP
+      lastTapRef.current = now;
+      if (!showControls) {
+        setShowControls(true);
+        resetAutoHideTimer();
+      } else {
+        setShowControls(false);
+      }
     }
   };
 
@@ -207,15 +230,14 @@ const currentVideo =
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {/* VIDEO FULLSCREEN */}
-      <Video
-        ref={videoRef}
-        source={{ uri: currentVideo.videoPath }}
+      {/* NATIVE VIDEO KINERJA TINGGI DARI EXPO-VIDEO */}
+      <VideoView
         style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
-        shouldPlay
-        isLooping={false}
-        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
+        player={player}
+        nativeControls={false}
+        allowsFullscreen={false} // Atur true jika Anda butuh modal fullscreen native (fitur OS)
+        allowsPictureInPicture={false}
+        contentFit="contain"
       />
 
       {/* FULL SCREEN TOUCH AREA - untuk mendeteksi tap */}
@@ -371,10 +393,6 @@ const currentVideo =
                   onPress={() => {
                     setCurrentEpisode(item);
                     setShowEpisodeList(false);
-                    setProgress(0);
-                    setCurrentTime("0:00");
-                    setPositionMillis(0);
-                    videoRef.current?.setPositionAsync(0);
                     resetAutoHideTimer();
                   }}
                 >
@@ -413,12 +431,10 @@ const currentVideo =
                   styles.qualityItem,
                   item.quality === selectedQuality && styles.activeQuality,
                 ]}
-                onPress={async () => {
+                  onPress={() => {
                   setSelectedQuality(item.quality);
                   setShowQualityModal(false);
-
-                  await videoRef.current?.setPositionAsync(positionMillis);
-                  await videoRef.current?.playAsync();
+                  // LOGIC SEEK DELAY TELAH DIPINDAHKAN KE DALAM useEffect AMAN DI ATAS
                 }}
               >
                 <Text style={styles.qualityText}>{item.quality}p</Text>
@@ -502,14 +518,15 @@ const styles = StyleSheet.create({
   timeText: {
     color: "white",
     fontSize: 14,
-    minWidth: 50,
+    minWidth: 45,
     textAlign: "center",
-    fontWeight: "500",
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"], // Bikin angka-angka tidak bergeser tebal/tipisnya
   },
   progressBarWrapper: {
     flex: 1,
     height: 40,
-    marginHorizontal: 10,
+    marginHorizontal: 15,
     justifyContent: "center",
   },
   progressBarTouchable: {

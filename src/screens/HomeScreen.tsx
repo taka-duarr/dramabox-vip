@@ -116,12 +116,12 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const currentTabTitle =
     activeTab === "vip"
-      ? "🔥 VIP Drama"
+      ? "VIP Drama"
       : activeTab === "latest"
-        ? "🆕 Drama Terbaru"
+        ? "Drama Terbaru"
         : activeTab === "trending"
-          ? "📈 Drama Populer"
-          : "✨ Rekomendasi Untukmu";
+          ? "Drama Populer"
+          : "Rekomendasi Untukmu";
 
   const currentSubtitle =
     activeTab === "vip"
