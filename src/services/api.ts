@@ -99,3 +99,94 @@ export const getDetailDrama = async (bookId: string) => {
     return res.data;
   });
 };
+
+// SERVER 2: NETSHORT API
+const netshortApi = axios.create({
+  baseURL: "https://netshort.sansekai.my.id/api",
+  timeout: 30000,
+});
+
+axiosRetry(netshortApi, {
+  retries: 3,
+  retryDelay: (retryCount: number) => {
+    return retryCount * 2000;
+  },
+  retryCondition: (error: AxiosError) => {
+    const status = error.response?.status;
+    return (
+      axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+      status === 429 ||
+      status === 500 ||
+      status === 502 ||
+      status === 503 ||
+      status === 504
+    );
+  },
+});
+
+export const getNetshortForYou = async (page: number = 1): Promise<any> => {
+  return fetchWithCache(`https://netshort.sansekai.my.id/api/netshort/foryou?page=${page}`, async () => {
+    const res = await netshortApi.get(`/netshort/foryou?page=${page}`);
+    return res.data;
+  });
+};
+
+export const getNetshortSearch = async (query: string): Promise<any> => {
+  const encodedQuery = encodeURIComponent(query);
+  return fetchWithCache(`https://netshort.sansekai.my.id/api/netshort/search?query=${encodedQuery}`, async () => {
+    const res = await netshortApi.get(`/netshort/search?query=${encodedQuery}`);
+    return res.data;
+  });
+};
+
+export const getNetshortDetailAndEpisodes = async (shortPlayId: string): Promise<{ detail: any, episodes: any[] }> => {
+  return fetchWithCache(`/netshort/allepisode?shortPlayId=${shortPlayId}`, async () => {
+    const response = await netshortApi.get(`/netshort/allepisode?shortPlayId=${shortPlayId}`);
+    
+    // Asumsi response.data langsung berupa Object Server 2 detail
+    const detailData = response.data || {};
+    const shortPlayEpisodeInfos = detailData.shortPlayEpisodeInfos || [];
+
+    // Mapping ke schema Server 1 (Episode) agar komponen video player / episode screen bisa recycle logika
+    const mappedEpisodes: any[] = shortPlayEpisodeInfos.map((ep: any) => ({
+      chapterId: ep.episodeId,
+      chapterIndex: ep.episodeNo,
+      chapterName: `Episode ${ep.episodeNo}`,
+      isCharge: ep.isLock ? 1 : 0,
+      chapterImg: ep.episodeCover || detailData.shortPlayCover,
+      
+      // Original Server 2 properties for VideoScreen2
+      episodeId: ep.episodeId,
+      episodeNo: ep.episodeNo,
+      playVoucher: ep.playVoucher,
+      playClarity: ep.playClarity,
+      subtitleList: ep.subtitleList || [],
+
+      cdnList: [
+        {
+          cdnDomain: "awscdn.netshort.com",
+          isDefault: 1,
+          videoPathList: [
+            {
+              quality: parseInt(ep.playClarity) || 1080,
+              videoPath: ep.playVoucher,
+              isDefault: 1,
+              isVipEquity: ep.isLock ? 1 : 0,
+            }
+          ]
+        }
+      ]
+    }));
+
+    // Mapping fields khusus Detail ke format Server 1 supaya UI EpisodeScreen tetap jalan
+    const mappedDetail = {
+      bookName: detailData.shortPlayName,
+      coverWap: detailData.shortPlayCover,
+      introduction: detailData.shotIntroduce,
+      score: 9.0, // fallback
+      tags: detailData.shortPlayLabels || []
+    };
+
+    return { detail: mappedDetail, episodes: mappedEpisodes };
+  });
+};

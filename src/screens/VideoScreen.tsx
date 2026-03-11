@@ -37,7 +37,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
   const [currentEpisode, setCurrentEpisode] = useState<Episode>(episode);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(true); 
 
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const progressBarRef = useRef<View>(null);
