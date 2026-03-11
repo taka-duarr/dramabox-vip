@@ -8,12 +8,12 @@ import {
   Text,
   TextInput,
   FlatList,
-  Image,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Dimensions,
 } from "react-native";
+import { Image } from "expo-image";
 import { getSearchDrama } from "../services/api";
 
 const { width } = Dimensions.get("window");
