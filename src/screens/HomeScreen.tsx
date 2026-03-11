@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { Image } from "expo-image";
 import {
   getVipDrama,
   getLatestDrama,
