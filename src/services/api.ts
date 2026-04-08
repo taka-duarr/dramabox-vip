@@ -4,7 +4,7 @@ import { VipResponse } from "../types/drama";
 import { Episode } from "../types/episode";
 
 const api = axios.create({
-  baseURL: "https://dramabox.sansekai.my.id/api",
+  baseURL: "https://api.sansekai.my.id/api",
   timeout: 30000, // Timeout diperpanjang hingga 30 detik
 });
 
@@ -48,9 +48,9 @@ const fetchWithCache = async <T>(
   return data;
 };
 
-export const getVipDrama = async (): Promise<VipResponse> => {
-  return fetchWithCache("/dramabox/vip", async () => {
-    const response = await api.get<VipResponse>("/dramabox/vip");
+export const getVipDrama = async (page: number = 1): Promise<VipResponse> => {
+  return fetchWithCache(`/dramabox/vip?page=${page}`, async () => {
+    const response = await api.get<VipResponse>(`/dramabox/vip?page=${page}`);
     return response.data;
   });
 };
@@ -64,31 +64,31 @@ export const getAllEpisodes = async (bookId: string): Promise<Episode[]> => {
   });
 };
 
-export const getLatestDrama = async () => {
-  return fetchWithCache("/dramabox/latest", async () => {
-    const res = await api.get("/dramabox/latest");
+export const getLatestDrama = async (page: number = 1) => {
+  return fetchWithCache(`/dramabox/latest?page=${page}`, async () => {
+    const res = await api.get(`/dramabox/latest?page=${page}`);
     return res.data;
   });
 };
 
-export const getSearchDrama = async (query: string) => {
+export const getSearchDrama = async (query: string, page: number = 1) => {
   const encodedQuery = encodeURIComponent(query);
-  return fetchWithCache(`/dramabox/search?query=${encodedQuery}`, async () => {
-    const res = await api.get(`/dramabox/search?query=${encodedQuery}`);
+  return fetchWithCache(`/dramabox/search?query=${encodedQuery}&page=${page}`, async () => {
+    const res = await api.get(`/dramabox/search?query=${encodedQuery}&page=${page}`);
     return res.data;
   });
 };
 
-export const getTrendingDrama = async () => {
-  return fetchWithCache("/dramabox/trending", async () => {
-    const res = await api.get("/dramabox/trending");
+export const getTrendingDrama = async (page: number = 1) => {
+  return fetchWithCache(`/dramabox/trending?page=${page}`, async () => {
+    const res = await api.get(`/dramabox/trending?page=${page}`);
     return res.data;
   });
 };
 
-export const getForYouDrama = async () => {
-  return fetchWithCache("/dramabox/foryou", async () => {
-    const res = await api.get("/dramabox/foryou");
+export const getForYouDrama = async (page: number = 1) => {
+  return fetchWithCache(`/dramabox/foryou?page=${page}`, async () => {
+    const res = await api.get(`/dramabox/foryou?page=${page}`);
     return res.data;
   });
 };

@@ -7,6 +7,7 @@ import {
   Modal,
   FlatList,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -45,8 +46,11 @@ const [showQualityModal, setShowQualityModal] = useState(false);
       (v) => v.quality === selectedQuality
     ) ?? currentEpisode.cdnList[0].videoPathList[0];
 
+  // Bungkus URL mentah dengan Endpoint Decrypt-Stream dari Server 1 agar tidak diblokir/403
+  const decryptedVideoUrl = `https://api.sansekai.my.id/api/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+
   // Inisialisasi Player Video Modern tanpa Rerender Ulang Objek
-  const player = useVideoPlayer(currentVideo.videoPath, (player) => {
+  const player = useVideoPlayer(decryptedVideoUrl, (player) => {
     player.loop = false;
     player.muted = false;
     player.volume = 1.0;
@@ -56,7 +60,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
   // Saat kualitas berubah atau episode beda, gunakan replace() agar Native Object tidak hancur
   useEffect(() => {
     const backupPos = player.currentTime; // Simpan durasi terakhir sebelum ditarik
-    player.replace(currentVideo.videoPath); // Secara ajaib load Source tanpa membunuh Player
+    player.replaceAsync(decryptedVideoUrl); // Secara ajaib load Source tanpa membunuh Player secara asinkron
     
     // Geser instan kembali ke menit terakhir secara aman
     if (backupPos > 0) {
@@ -72,6 +76,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
 
   // Event Listener Real-Time tanpa Lag/Buffering berat (expo terbaru)
   const { isPlaying: playerIsPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  const { status: playerStatus } = useEvent(player, 'statusChange', { status: player.status });
   
   // Karena hook event native tidak me-Rerender State UI setiap detik (hanya trigger under-the-hood expo)
   // Kita hubungkan ke State lokal dengan interval saat video Play
@@ -236,6 +241,34 @@ const [showQualityModal, setShowQualityModal] = useState(false);
         allowsPictureInPicture={false}
         contentFit="contain"
       />
+
+      {/* INDIKATOR LOADING / BUFFERING */}
+      {playerStatus === 'loading' && (
+         <View style={styles.centerOverlay}>
+           <ActivityIndicator size="large" color="#FF4757" />
+           <Text style={styles.bufferingText}>Memuat Video...</Text>
+         </View>
+      )}
+
+      {/* INDIKATOR ERROR & RETRY (TOKEN EXPIRED/URL BLOCKED) */}
+      {playerStatus === 'error' && (
+         <View style={styles.centerOverlay}>
+           <Ionicons name="warning" size={40} color="#FF4757" style={{ marginBottom: 10 }} />
+           <Text style={[styles.bufferingText, { color: '#FFF', textAlign: 'center', marginHorizontal: 20 }]}>
+             Gagal Memutar Video. Server menolak koneksi atau sesi habis.
+           </Text>
+           <TouchableOpacity
+             style={styles.retryButton}
+             onPress={async () => {
+                const retryDecryptedUrl = `https://api.sansekai.my.id/api/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+                await player.replaceAsync(retryDecryptedUrl);
+                player.play();
+             }}
+           >
+             <Text style={styles.retryButtonText}>Coba Ulang Server</Text>
+           </TouchableOpacity>
+         </View>
+      )}
 
       {/* FULL SCREEN TOUCH AREA - untuk mendeteksi tap */}
       <TouchableOpacity
@@ -466,6 +499,30 @@ const styles = StyleSheet.create({
     backgroundColor: "black",
     justifyContent: "center",
     alignItems: "center",
+  },
+  centerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    zIndex: 5,
+  },
+  bufferingText: {
+    color: "#ccc",
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  retryButton: {
+    marginTop: 15,
+    backgroundColor: "#FF4757",
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
   },
   video: {
     width: "100%",

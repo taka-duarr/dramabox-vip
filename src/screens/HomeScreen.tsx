@@ -33,7 +33,6 @@ type TabType = "vip" | "latest" | "trending" | "foryou";
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>("vip");
-  const [searchQuery, setSearchQuery] = useState("");
   const [trendingDramas, setTrendingDramas] = useState<Drama[]>([]);
   const [forYouDramas, setForYouDramas] = useState<Drama[]>([]);
   const [loadingForYou, setLoadingForYou] = useState(false);
@@ -127,9 +126,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           : activeTab === "trending"
             ? trendingDramas
             : forYouDramas;
-    if (!searchQuery.trim()) return raw;
-    const q = searchQuery.toLowerCase();
-    return raw.filter((d) => d.bookName?.toLowerCase().includes(q));
+    return raw;
   })();
 
   const currentTabTitle =
@@ -254,32 +251,23 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
 
         <View style={styles.headerRow}>
-          {/* Search Input dengan icon di kanan */}
-          <View
+          {/* Fake Search Bar mengarah ke SearchScreen */}
+          <TouchableOpacity
             style={[styles.searchBar, { backgroundColor: colors.searchBg }]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Search")}
           >
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Cari drama favoritmu..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            <TouchableOpacity
-              style={styles.searchIconWrap}
-              onPress={() => {
-                if (searchQuery.trim()) setSearchQuery("");
-              }}
-              activeOpacity={0.7}
-            >
+            <Text style={[styles.searchInput, { color: colors.textMuted, lineHeight: 40 }]}>
+              Cari drama favoritmu...
+            </Text>
+            <View style={styles.searchIconWrap}>
               <Ionicons
-                name={searchQuery ? "close" : "search"}
+                name="search"
                 size={18}
                 color={colors.textSecondary}
               />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
 
