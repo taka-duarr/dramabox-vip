@@ -17,6 +17,7 @@ import { Episode } from "../types/episode";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -26,6 +27,7 @@ export default function EpisodeScreen({ route, navigation }: any) {
   const [detail, setDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     if (!bookId) return;
@@ -53,9 +55,9 @@ export default function EpisodeScreen({ route, navigation }: any) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator size="large" color="#FF4757" />
-        <Text style={{ marginTop: 10, color: "#666" }}>Memuat Detail...</Text>
+      <View style={[styles.container, { backgroundColor: colors.bg, justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={{ marginTop: 10, color: colors.textSecondary }}>Memuat Detail...</Text>
       </View>
     );
   }
@@ -84,35 +86,39 @@ export default function EpisodeScreen({ route, navigation }: any) {
             </View>
           </View>
 
-          {/* Gradient memudar ke Background Utama (Putih) */}
+          {/* Gradient memudar ke Background Utama */}
           <LinearGradient
-            colors={["transparent", "rgba(255,255,255,0.8)", "#FFFFFF"]}
+            colors={[
+              "transparent",
+              isDark ? "rgba(18,18,18,0.8)" : "rgba(240,240,240,0.8)",
+              colors.bg,
+            ]}
             style={styles.heroGradient}
           />
         </ImageBackground>
       </View>
 
       {/* DETAIL CONTENT */}
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, { backgroundColor: colors.bg }]}>
         
         {/* TITLE */}
-        <Text style={styles.titleText}>{detail?.bookName || title}</Text>
+        <Text style={[styles.titleText, { color: colors.text }]}>{detail?.bookName || title}</Text>
         
         {/* STATS: Score, Year, Episodes */}
         <View style={styles.statsRow}>
-          <Ionicons name="star" size={16} color="#FF4757" />
-          <Text style={styles.scoreText}>{(Math.random() * 2 + 8).toFixed(1)}</Text>
+          <Ionicons name="star" size={16} color={colors.accent} />
+          <Text style={[styles.scoreText, { color: colors.accent }]}>{(Math.random() * 2 + 8).toFixed(1)}</Text>
           <Text style={styles.dotSeparator}>•</Text>
-          <Text style={styles.statText}>2024</Text>
+          <Text style={[styles.statText, { color: colors.textSecondary }]}>2024</Text>
           <Text style={styles.dotSeparator}>•</Text>
-          <Text style={styles.statText}>{episodes.length} Episodes</Text>
+          <Text style={[styles.statText, { color: colors.textSecondary }]}>{episodes.length} Episodes</Text>
         </View>
 
         {/* TAGS */}
         <View style={styles.tagsRow}>
           {dummyTags.map((tag, i) => (
-            <View key={i} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{tag}</Text>
+            <View key={i} style={[styles.tagBadge, { backgroundColor: isDark ? "rgba(230,51,51,0.15)" : "#FFE5E8" }]}>
+              <Text style={[styles.tagText, { color: colors.accent }]}>{tag}</Text>
             </View>
           ))}
         </View>
@@ -120,7 +126,7 @@ export default function EpisodeScreen({ route, navigation }: any) {
         {/* ACTION BUTTONS */}
         <View style={styles.actionsRow}>
           <TouchableOpacity 
-            style={styles.watchButton} 
+            style={[styles.watchButton, { backgroundColor: colors.accent }]} 
             activeOpacity={0.8}
             onPress={() => {
               if (episodes.length > 0) {
@@ -132,29 +138,29 @@ export default function EpisodeScreen({ route, navigation }: any) {
             <Text style={styles.watchButtonText}>Watch Now</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Ionicons name="add-circle-outline" size={24} color="#333" />
+          <TouchableOpacity style={[styles.secondaryButton, { backgroundColor: colors.card }]}>
+            <Ionicons name="add-circle-outline" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
 
         {/* SYNOPSIS */}
-        <Text style={styles.sectionTitle}>Synopsis</Text>
-        <Text style={styles.synopsisText} numberOfLines={5}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Synopsis</Text>
+        <Text style={[styles.synopsisText, { color: colors.textSecondary }]} numberOfLines={5}>
           {detail?.introduction || 
            "A low-ranking fairy inadvertently accidentally frees the dreaded Moon Supreme... To regain his freedom he must sacrifice the fairy's soul. However, in the process, the heartless demon finds himself falling for the gentle fairy."}
         </Text>
 
         {/* EPISODES LIST HEADER */}
         <View style={styles.episodeHeader}>
-          <Text style={styles.sectionTitle}>Episodes</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Episodes</Text>
         </View>
       </View>
     </>
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="transparent" translucent />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar style={isDark ? "light" : "dark"} backgroundColor="transparent" translucent />
       
       {/* 
         FlatList adalah satu-satunya wadah Gulir yang aktif.
@@ -170,7 +176,7 @@ export default function EpisodeScreen({ route, navigation }: any) {
         renderItem={({ item, index }) => (
           <View style={styles.listPaddingWrapper}>
             <TouchableOpacity
-              style={styles.episodeCardVertical}
+              style={[styles.episodeCardVertical, { backgroundColor: colors.card }]}
               activeOpacity={0.8}
               onPress={() => navigation.navigate("Video", { episode: item, episodes })}
             >
@@ -182,8 +188,8 @@ export default function EpisodeScreen({ route, navigation }: any) {
               </View>
 
               <View style={styles.episodeInfoVert}>
-                <Text style={styles.episodeCardTitle} numberOfLines={1}>Episode {index + 1}</Text>
-                <Text style={styles.episodeCardSubtitle} numberOfLines={2}>{item.chapterName}</Text>
+                <Text style={[styles.episodeCardTitle, { color: colors.text }]} numberOfLines={1}>Episode {index + 1}</Text>
+                <Text style={[styles.episodeCardSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>{item.chapterName}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -234,6 +240,7 @@ const styles = StyleSheet.create({
     marginTop: -20, // Menarik konten naik sedikit menyatu dengan gradient
   },
   titleText: {
+    fontFamily:"calibri",
     fontSize: 26,
     fontWeight: "800",
     color: "#001F3F", // Warna biru sangat gelap hampir hitam

@@ -12,15 +12,25 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { getSearchDrama } from "../services/api";
 
-const { width } = Dimensions.get("window");
 const CARD_MARGIN = 8;
-const CARD_WIDTH = width / 2 - 16 - CARD_MARGIN; // 16 padding Container layar
 
 const SearchScreen = ({ navigation }: any) => {
+  const { width } = useWindowDimensions();
+  let numColumns = 2;
+  if (width >= 1200) numColumns = 5;
+  else if (width >= 900) numColumns = 4;
+  else if (width >= 600) numColumns = 3;
+
+  const listPadding = 16;
+  const availableWidth = width - (listPadding * 2); 
+  // Because rowWrapper distributes space, card width = available container width / columns minus margins wrapper
+  const CARD_WIDTH = (availableWidth / numColumns) - CARD_MARGIN;
+
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,11 +100,12 @@ const SearchScreen = ({ navigation }: any) => {
       {/* ANIMASI LOADING DI TENGAH */}
       {loading && <ActivityIndicator size="large" color="#FF4757" style={styles.loader} />}
 
-      {/* RESULT LIST DALAM 2 KOLOM GRID */}
+      {/* RESULT LIST DALAM GRID MULTI KOLOM DINAMIS */}
       <FlatList
+        key={`grid-${numColumns}`}
         data={results}
         keyExtractor={(item) => item.bookId}
-        numColumns={2}
+        numColumns={numColumns}
         columnWrapperStyle={styles.rowWrapper}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
@@ -107,7 +118,7 @@ const SearchScreen = ({ navigation }: any) => {
 
           return (
             <TouchableOpacity
-              style={styles.card}
+              style={[styles.card, { width: CARD_WIDTH }]}
               onPress={() =>
                 navigation.navigate("Episode", {
                   bookId: item.bookId,
@@ -238,7 +249,6 @@ const styles = StyleSheet.create({
   
   /* DESAIN SEL ITEM KARTU KOTAK */
   card: {
-    width: CARD_WIDTH,
     marginBottom: 24,
     marginHorizontal: CARD_MARGIN / 2,
   },

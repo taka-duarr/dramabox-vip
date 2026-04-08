@@ -17,11 +17,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useKeepAwake } from "expo-keep-awake";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
-
-
-
-
-const { width, height } = Dimensions.get("window");
+import { useTheme } from "../context/ThemeContext";const { width, height } = Dimensions.get("window");
 
 const VideoScreen = ({ route }: { route: RouteProp<any, any> }) => {
   useKeepAwake();
@@ -38,6 +34,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
   const [showEpisodeList, setShowEpisodeList] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(true); 
+  const { colors } = useTheme();
 
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const progressBarRef = useRef<View>(null);
@@ -252,19 +249,19 @@ const [showQualityModal, setShowQualityModal] = useState(false);
           <>
             {/* TOP CONTROLS - Judul Episode */}
             <View style={styles.topControls}>
-              {/* BACK BUTTON */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="arrow-back" size={26} color="white" />
-              </TouchableOpacity>
-
               {/* TITLE */}
               <Text style={styles.episodeTitle} numberOfLines={1}>
                 {currentEpisode.chapterName}
               </Text>
+
+              {/* CLOSE BUTTON (X) */}
+              <TouchableOpacity
+                style={styles.closePageButton}
+                onPress={() => navigation.goBack()}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={28} color="white" />
+              </TouchableOpacity>
             </View>
 
             {/* PLAY/PAUSE BUTTON DI TENGAH - hanya muncul saat pause */}
@@ -300,7 +297,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
                     <View
                       style={[
                         styles.progressBarFill,
-                        { width: `${progress * 100}%` },
+                        { width: `${progress * 100}%`, backgroundColor: colors.accent },
                       ]}
                     />
                     <View
@@ -308,6 +305,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
                         styles.progressThumb,
                         {
                           left: `${progress * 100}%`,
+                          backgroundColor: colors.accent,
                         },
                       ]}
                     />
@@ -377,8 +375,27 @@ const [showQualityModal, setShowQualityModal] = useState(false);
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Daftar Episode</Text>
+          <TouchableOpacity 
+            style={styles.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => {
+              setShowEpisodeList(false);
+              resetAutoHideTimer();
+            }} 
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Daftar Episode</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEpisodeList(false);
+                  resetAutoHideTimer();
+                }}
+                style={styles.modalCloseIcon}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
             <FlatList
               data={episodes}
@@ -387,8 +404,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
                 <TouchableOpacity
                   style={[
                     styles.episodeItem,
-                    item.chapterId === currentEpisode.chapterId &&
-                      styles.activeEpisode,
+                    { backgroundColor: item.chapterId === currentEpisode.chapterId ? colors.accent : colors.card }
                   ]}
                   onPress={() => {
                     setCurrentEpisode(item);
@@ -396,20 +412,10 @@ const [showQualityModal, setShowQualityModal] = useState(false);
                     resetAutoHideTimer();
                   }}
                 >
-                  <Text style={styles.episodeText}>{item.chapterName}</Text>
+                  <Text style={[styles.episodeText, { color: item.chapterId === currentEpisode.chapterId ? "#FFFFFF" : colors.text }]}>{item.chapterName}</Text>
                 </TouchableOpacity>
               )}
             />
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setShowEpisodeList(false);
-                resetAutoHideTimer();
-              }}
-            >
-              <Text style={styles.closeButtonText}>Tutup</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -420,24 +426,29 @@ const [showQualityModal, setShowQualityModal] = useState(false);
         animationType="fade"
         onRequestClose={() => setShowQualityModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.qualityModal}>
-            <Text style={styles.modalTitle}>Pilih Kualitas</Text>
+        <View style={styles.qualityModalOverlay}>
+          <TouchableOpacity style={styles.absoluteFill} activeOpacity={1} onPress={() => setShowQualityModal(false)} />
+          <View style={[styles.qualityModal, { backgroundColor: colors.bg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Pilih Resolusi</Text>
+              <TouchableOpacity onPress={() => setShowQualityModal(false)} style={styles.modalCloseIcon}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
             {currentEpisode.cdnList[0].videoPathList.map((item) => (
               <TouchableOpacity
                 key={item.quality}
                 style={[
                   styles.qualityItem,
-                  item.quality === selectedQuality && styles.activeQuality,
+                  { backgroundColor: item.quality === selectedQuality ? colors.accent : colors.card, borderColor: colors.border }
                 ]}
                   onPress={() => {
                   setSelectedQuality(item.quality);
                   setShowQualityModal(false);
-                  // LOGIC SEEK DELAY TELAH DIPINDAHKAN KE DALAM useEffect AMAN DI ATAS
                 }}
               >
-                <Text style={styles.qualityText}>{item.quality}p</Text>
+                <Text style={[styles.qualityText, { color: item.quality === selectedQuality ? "#FFFFFF" : colors.text }]}>{item.quality}p</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -453,10 +464,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
   },
   video: {
-    width,
-    height,
+    width: "100%",
+    height: "100%",
   },
   fullScreenTouchable: {
     position: "absolute",
@@ -473,17 +486,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingTop: 50, // aman untuk notch
-    paddingBottom: 15,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
 
   episodeTitle: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "left",
+    flex: 1,
+  },
+
+  closePageButton: {
+    padding: 8,
+    zIndex: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20,
   },
 
   /* CENTER PLAY BUTTON */
@@ -543,7 +566,6 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#ff0a0aff",
     borderRadius: 2,
     position: "absolute",
     left: 0,
@@ -555,7 +577,6 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#ff0000ff",
     marginLeft: -8,
   },
 
@@ -615,74 +636,81 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     height: "60%",
-    backgroundColor: "#111827",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   modalTitle: {
-    color: "white",
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-    textAlign: "center",
+    fontWeight: "700",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalCloseIcon: {
+    padding: 4,
   },
   episodeItem: {
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: "#1F2937",
+    borderRadius: 12,
     marginBottom: 10,
   },
-  activeEpisode: {
-    backgroundColor: "#f90a0aff",
-  },
   episodeText: {
-    color: "white",
     fontSize: 15,
+    fontWeight: "600",
   },
-  closeButton: {
+  closeModalButton: {
     alignSelf: "center",
     marginTop: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    backgroundColor: "#ff0000ff",
-    borderRadius: 8,
+    paddingVertical: 14,
+    width: "100%",
+    alignItems: "center",
+    borderRadius: 12,
   },
   closeButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "600",
-  },
-  backButton: {
-    position: "absolute",
-    left: 16,
-    padding: 8,
-    zIndex: 10,
+    fontWeight: "700",
   },
 
-  qualityModal: {
-    backgroundColor: "#111827",
-    borderRadius: 12,
-    padding: 16,
-    width: "80%",
-  },
-
-  qualityItem: {
-    paddingVertical: 12,
+  qualityModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: "#1F2937",
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
-
-  activeQuality: {
-    backgroundColor: "#ff0000ff",
+  absoluteFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-
+  qualityModal: {
+    borderRadius: 16,
+    padding: 24,
+    width: "75%",
+    maxWidth: 320,
+    elevation: 10,
+  },
+  qualityItem: {
+    paddingVertical: 14,
+    alignItems: "center",
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
   qualityText: {
-    color: "white",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

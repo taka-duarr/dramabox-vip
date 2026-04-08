@@ -16,6 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { useNavigation } from "@react-navigation/native";
 import { useKeepAwake } from "expo-keep-awake";
 import { WebView } from "react-native-webview";
+import { useTheme } from "../context/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,6 +38,7 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [positionMillis, setPositionMillis] = useState<number>(0);
   const [durationMillis, setDurationMillis] = useState<number>(0);
+  const { colors } = useTheme();
 
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
   const progressBarRef = useRef<View>(null);
@@ -320,19 +322,19 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
             <>
               {/* TOP CONTROLS - Judul Episode */}
               <View style={styles.topControls}>
-                {/* BACK BUTTON */}
-                <TouchableOpacity
-                  style={styles.backButton}
-                  onPress={() => navigation.goBack()}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="arrow-back" size={26} color="white" />
-                </TouchableOpacity>
-
                 {/* TITLE */}
                 <Text style={styles.episodeTitle} numberOfLines={1}>
                   {currentEpisode.chapterName}
                 </Text>
+
+                {/* CLOSE BUTTON (X) */}
+                <TouchableOpacity
+                  style={styles.closePageButton}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={28} color="white" />
+                </TouchableOpacity>
               </View>
 
               {/* PLAY/PAUSE BUTTON DI TENGAH - hanya muncul saat pause */}
@@ -382,7 +384,7 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
                       <View
                         style={[
                           styles.progressBarFill,
-                          { width: `${progress * 100}%` },
+                          { width: `${progress * 100}%`, backgroundColor: colors.accent },
                         ]}
                       />
                       <View
@@ -390,6 +392,7 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
                           styles.progressThumb,
                           {
                             left: `${progress * 100}%`,
+                            backgroundColor: colors.accent,
                           },
                         ]}
                       />
@@ -433,8 +436,27 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
         }}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Daftar Episode</Text>
+          <TouchableOpacity 
+            style={styles.absoluteFill} 
+            activeOpacity={1} 
+            onPress={() => {
+              setShowEpisodeList(false);
+              resetAutoHideTimer();
+            }} 
+          />
+          <View style={[styles.modalContent, { backgroundColor: colors.bg }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Daftar Episode</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEpisodeList(false);
+                  resetAutoHideTimer();
+                }}
+                style={styles.modalCloseIcon}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
             <FlatList
               data={episodes}
@@ -443,8 +465,7 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
                 <TouchableOpacity
                   style={[
                     styles.episodeItem,
-                    item.episodeId === currentEpisode.episodeId &&
-                      styles.activeEpisode,
+                    { backgroundColor: item.episodeId === currentEpisode.episodeId ? colors.accent : colors.card }
                   ]}
                   onPress={() => {
                     setCurrentEpisode(item);
@@ -454,20 +475,10 @@ const VideoScreen2 = ({ route }: { route: RouteProp<any, any> }) => {
                     resetAutoHideTimer();
                   }}
                 >
-                  <Text style={styles.episodeText}>Episode {item.episodeNo}</Text>
+                  <Text style={[styles.episodeText, { color: item.episodeId === currentEpisode.episodeId ? "#FFFFFF" : colors.text }]}>Episode {item.episodeNo}</Text>
                 </TouchableOpacity>
               )}
             />
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => {
-                setShowEpisodeList(false);
-                resetAutoHideTimer();
-              }}
-            >
-              <Text style={styles.closeButtonText}>Tutup</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -481,16 +492,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "black",
+    justifyContent: "center",
+    alignItems: "center",
   },
   webViewContainer: {
     flex: 1,
+    width: "100%",
     position: 'relative',
     backgroundColor: "black",
   },
   video: {
     flex: 1,
-    width,
-    height,
+    width: "100%",
+    height: "100%",
     backgroundColor: "black",
   },
   fullScreenTouchable: {
@@ -518,24 +532,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     zIndex: 10,
-  },
-  backButton: {
-    position: "absolute",
-    left: 16,
-    top: 45,
-    padding: 8,
-    zIndex: 15,
   },
   episodeTitle: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "left",
+    flex: 1,
+  },
+  closePageButton: {
+    padding: 8,
+    zIndex: 15,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20,
   },
   /* CENTER PLAY BUTTON */
   centerPlayButton: {
@@ -593,7 +609,6 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#ff0a0aff",
     borderRadius: 2,
     position: "absolute",
     left: 0,
@@ -605,7 +620,6 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#ff0000ff",
     marginLeft: -8,
   },
   /* BOTTOM CONTROLS */
@@ -663,43 +677,43 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     height: "60%",
-    backgroundColor: "#111827",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  absoluteFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   modalTitle: {
-    color: "white",
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-    textAlign: "center",
+    fontWeight: "700",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalCloseIcon: {
+    padding: 4,
   },
   episodeItem: {
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: "#1F2937",
+    borderRadius: 12,
     marginBottom: 10,
   },
-  activeEpisode: {
-    backgroundColor: "#f90a0aff",
-  },
   episodeText: {
-    color: "white",
     fontSize: 15,
-  },
-  closeButton: {
-    alignSelf: "center",
-    marginTop: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    backgroundColor: "#ff0000ff",
-    borderRadius: 8,
-  },
-  closeButtonText: {
-    color: "white",
-    fontSize: 16,
     fontWeight: "600",
   },
 });
