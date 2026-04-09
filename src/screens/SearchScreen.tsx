@@ -2,24 +2,25 @@ import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
-
 import {
   View,
   Text,
   TextInput,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Dimensions,
   useWindowDimensions,
+  DimensionValue,
 } from "react-native";
 import { Image } from "expo-image";
-import { getSearchDrama } from "../services/api";
+import { getSearchDrama, getNetshortSearch } from "../services/api";
+import { useTheme } from "../context/ThemeContext";
 
 const CARD_MARGIN = 8;
 
 const SearchScreen = ({ navigation }: any) => {
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
   let numColumns = 2;
   if (width >= 1200) numColumns = 5;
@@ -27,21 +28,44 @@ const SearchScreen = ({ navigation }: any) => {
   else if (width >= 600) numColumns = 3;
 
   const listPadding = 16;
-  const availableWidth = width - (listPadding * 2); 
-  // Because rowWrapper distributes space, card width = available container width / columns minus margins wrapper
+  const availableWidth = width - listPadding * 2;
   const CARD_WIDTH = (availableWidth / numColumns) - CARD_MARGIN;
 
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [resultsS1, setResultsS1] = useState<any[]>([]);
+  const [resultsS2, setResultsS2] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const stripHtml = (text?: string) => (text ? text.replace(/<[^>]*>?/gm, "") : "");
+
+  const safeImageS2 = (url?: string) => {
+    if (!url) return "https://via.placeholder.com/180x240";
+    const encoded = url.replace(/比/g, "%E6%AF%94");
+    if (encoded.includes("awscover.netshort.com")) {
+      return `https://wsrv.nl/?url=${encoded.replace(/^https?:\/\//, "")}`;
+    }
+    return encoded;
+  };
 
   const handleSearch = async () => {
     if (!query.trim()) return;
-
     try {
       setLoading(true);
-      const data = await getSearchDrama(query);
-      setResults(data);
+      setResultsS1([]);
+      setResultsS2([]);
+
+      // Fetch kedua server secara paralel
+      const [s1Res, s2Res] = await Promise.allSettled([
+        getSearchDrama(query),
+        getNetshortSearch(query),
+      ]);
+
+      if (s1Res.status === "fulfilled") {
+        setResultsS1(s1Res.value || []);
+      }
+      if (s2Res.status === "fulfilled") {
+        setResultsS2(s2Res.value?.searchCodeSearchResult || []);
+      }
     } catch (e) {
       console.error("Search error:", e);
     } finally {
@@ -51,111 +75,160 @@ const SearchScreen = ({ navigation }: any) => {
 
   const clearSearch = () => {
     setQuery("");
-    setResults([]);
+    setResultsS1([]);
+    setResultsS2([]);
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* STATUS BAR MODE TERANG MEMANCAR */}
-      <StatusBar style="dark" backgroundColor="#FAFAFA" />
+  const totalResults = resultsS1.length + resultsS2.length;
 
-      {/* HEADER SEARCH BAR MELENGKUNG CERAH */}
-      <View style={styles.searchHeader}>
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar style="auto" />
+
+      {/* SEARCH BAR */}
+      <View style={[styles.searchHeader, { backgroundColor: colors.bg }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={26} color="#0F172A" />
+          <Ionicons name="arrow-back" size={26} color={colors.text} />
         </TouchableOpacity>
-        
-        <View style={styles.searchBar}>
+        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="search" size={20} color="#FF4757" style={styles.searchIcon} />
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Ketik judul drama..."
-            placeholderTextColor="#94A3B8"
-            style={styles.input}
+            placeholder="Cari drama di Server 1 & 2..."
+            placeholderTextColor={colors.textMuted}
+            style={[styles.input, { color: colors.text }]}
             onSubmitEditing={handleSearch}
             returnKeyType="search"
+            autoFocus
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={clearSearch} style={styles.clearBtn}>
-              <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* RESULT INDCATOR (Tampil jika array ketemu) */}
-      {!loading && results.length > 0 && query.trim() !== "" && (
-        <View style={styles.resultInfoContainer}>
-          <Text style={styles.resultTitle}>
-            Search Results for{" "}
-            <Text style={styles.resultQuery}>"{query}"</Text>
+      {/* RESULT HEADER */}
+      {!loading && totalResults > 0 && (
+        <View style={styles.resultInfoRow}>
+          <Text style={[styles.resultTitle, { color: colors.text }]}>
+            Hasil untuk <Text style={{ color: "#FF4757" }}>"{query}"</Text>
           </Text>
-          <Text style={styles.resultCount}>
-            <Text style={styles.resultCountNumber}>{results.length}</Text>{"\n"}FOUND
-          </Text>
+          <View style={[styles.resultBadge, { backgroundColor: "#FF4757" }]}>
+            <Text style={styles.resultBadgeText}>{totalResults}</Text>
+          </View>
         </View>
       )}
 
-      {/* ANIMASI LOADING DI TENGAH */}
       {loading && <ActivityIndicator size="large" color="#FF4757" style={styles.loader} />}
 
-      {/* RESULT LIST DALAM GRID MULTI KOLOM DINAMIS */}
-      <FlatList
-        key={`grid-${numColumns}`}
-        data={results}
-        keyExtractor={(item) => item.bookId}
-        numColumns={numColumns}
-        columnWrapperStyle={styles.rowWrapper}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          // Fallback estetis: ambil 2 tag pertama dan tahun buatan bila spesifikasi API absen
-          const genres = item.tagNames && item.tagNames.length > 0 
-            ? item.tagNames.slice(0, 2).join(", ") 
-            : "Drama, Asia";
-          const year = "2023"; // Angka penambah aksen visual
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-          return (
-            <TouchableOpacity
-              style={[styles.card, { width: CARD_WIDTH }]}
-              onPress={() =>
-                navigation.navigate("Episode", {
-                  bookId: item.bookId,
-                  title: item.bookName,
-                })
-              }
-            >
-              <View style={styles.imageContainer}>
-                <Image source={{ uri: item.cover }} style={styles.image} />
-                
-                {/* LENCANA RATING BINTANG KANAN-ATAS */}
-                <View style={styles.ratingBadge}>
-                  <Ionicons name="star" size={12} color="#FBBF24" />
-                  <Text style={styles.ratingText}>8.9</Text>
-                </View>
-
-                
+        {/* ===== SERVER 1 RESULTS ===== */}
+        {resultsS1.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.serverBadge, { backgroundColor: "#FF4757" }]}>
+                <Text style={styles.serverBadgeText}>S1</Text>
               </View>
-
-              {/* JUDUL DAN SUBTITLE (Genre & Tahun) */}
-              <Text style={styles.title} numberOfLines={1}>
-                {item.bookName}
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Server 1</Text>
+              <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                {resultsS1.length} hasil
               </Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {genres} • {year}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-        ListEmptyComponent={
-          !loading && query ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.empty}>Oops, tidak ada pencarian untuk "{query}"</Text>
             </View>
-          ) : null
-        }
-      />
+
+            <View style={styles.gridRow}>
+              {resultsS1.map((item, i) => {
+                const genres = item.tagNames?.length > 0
+                  ? item.tagNames.slice(0, 2).join(", ")
+                  : "Drama";
+                return (
+                  <TouchableOpacity
+                    key={item.bookId ?? i}
+                    style={[styles.card, { width: CARD_WIDTH as DimensionValue, backgroundColor: colors.card }]}
+                    activeOpacity={0.82}
+                    onPress={() => navigation.navigate("Episode", { bookId: item.bookId, title: item.bookName })}
+                  >
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: item.cover || item.coverWap }} style={styles.image} contentFit="cover" />
+                      <View style={styles.ratingBadge}>
+                        <Ionicons name="star" size={10} color="#FBBF24" />
+                        <Text style={styles.ratingText}>8.9</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+                      {item.bookName}
+                    </Text>
+                    <Text style={[styles.cardSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {genres}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ===== SERVER 2 RESULTS ===== */}
+        {resultsS2.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.serverBadge, { backgroundColor: "#6C63FF" }]}>
+                <Text style={styles.serverBadgeText}>S2</Text>
+              </View>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Server 2</Text>
+              <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
+                {resultsS2.length} hasil
+              </Text>
+            </View>
+
+            <View style={styles.gridRow}>
+              {resultsS2.map((item, i) => (
+                <TouchableOpacity
+                  key={item.shortPlayId ?? i}
+                  style={[styles.card, { width: CARD_WIDTH as DimensionValue, backgroundColor: colors.card }]}
+                  activeOpacity={0.82}
+                  onPress={() =>
+                    navigation.navigate("Episode2", {
+                      bookId: item.shortPlayId,
+                      title: stripHtml(item.shortPlayName),
+                    })
+                  }
+                >
+                  <View style={styles.imageContainer}>
+                    <Image source={{ uri: safeImageS2(item.shortPlayCover) }} style={styles.image} contentFit="cover" />
+                    <View style={[styles.ratingBadge, { backgroundColor: "rgba(108,99,255,0.85)" }]}>
+                      <Ionicons name="star" size={10} color="#FBBF24" />
+                      <Text style={styles.ratingText}>{item.heatScoreShow || "—"}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+                    {stripHtml(item.shortPlayName)}
+                  </Text>
+                  <Text style={[styles.cardSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {item.labelNames?.split(",")[0] || "Drama"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* EMPTY STATE */}
+        {!loading && query.trim() !== "" && totalResults === 0 && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={64} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>
+              Tidak ada hasil untuk "{query}"
+            </Text>
+            <Text style={[styles.emptySub, { color: colors.textMuted }]}>
+              Coba kata kunci yang berbeda
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -163,12 +236,9 @@ const SearchScreen = ({ navigation }: any) => {
 export default SearchScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC", // Sentuhan Putih-BiruSangatPucat terang
-  },
+  container: { flex: 1 },
 
-  /* HEADER PENACARIAN */
+  /* HEADER */
   searchHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -176,150 +246,103 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
   },
-  backBtn: {
-    marginRight: 14,
-  },
+  backBtn: { marginRight: 14 },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FEF2F2", // Latar Merah/Krem Sangat Muda
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
-    borderWidth: 1.5,
-    borderColor: "#FEE2E2",
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
-  searchIcon: {
-    marginRight: 10,
+  searchIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, fontWeight: "500" },
+  clearBtn: { padding: 6 },
+
+  /* RESULT HEADER */
+  resultInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  input: {
-    flex: 1,
-    color: "#0F172A",
-    fontSize: 16,
-    fontWeight: "500",
+  resultTitle: { flex: 1, fontSize: 16, fontWeight: "700" },
+  resultBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  clearBtn: {
-    padding: 6,
+  resultBadgeText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+
+  loader: { marginTop: 40 },
+
+  /* SECTION */
+  section: { marginBottom: 8 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  serverBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  serverBadgeText: { color: "#fff", fontSize: 11, fontWeight: "800" },
+  sectionTitle: { flex: 1, fontSize: 16, fontWeight: "700" },
+  sectionCount: { fontSize: 13 },
+
+  /* GRID */
+  gridRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16 - CARD_MARGIN / 2,
   },
 
-  /* INDIKASI HASIL COUNT */
-  resultInfoContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  resultTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#0F172A", // Biru Navy Gelap
-    flex: 1,
-    marginRight: 16,
-    lineHeight: 28,
-  },
-  resultQuery: {
-    color: "#0F172A", 
-  },
-  resultCount: {
-    fontSize: 10,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 14,
-    marginTop: 2,
-  },
-  resultCountNumber: {
-    fontSize: 14,
-    color: "#64748B",
-    fontWeight: "bold",
-  },
-  
-  /* FLATLIST GRID 2 KOLOM */
-  loader: {
-    marginTop: 40,
-  },
-  listContainer: {
-    paddingHorizontal: 16 - CARD_MARGIN / 2, // Mengimbangi pembatas jarak Card di dalam
-    paddingBottom: 40,
-  },
-  rowWrapper: {
-    justifyContent: "space-between",
-  },
-  
-  /* DESAIN SEL ITEM KARTU KOTAK */
+  /* CARD */
   card: {
-    marginBottom: 24,
+    marginBottom: 20,
     marginHorizontal: CARD_MARGIN / 2,
-  },
-  imageContainer: {
-    position: "relative",
-    width: "100%",
-    aspectRatio: 0.65, // Rasio Memanjang Ke Bawah (Portrait)
     borderRadius: 12,
     overflow: "hidden",
-    marginBottom: 10,
-    backgroundColor: "#E2E8F0", // Warna Dasar penungggu keluat (*Placeholder*)
   },
-  image: {
+  imageContainer: {
     width: "100%",
-    height: "100%",
-    resizeMode: "cover",
+    aspectRatio: 0.67,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 8,
+    backgroundColor: "#E2E8F0",
   },
-  
-  /* LENCANA DAN TEMPELAN ABSOLUT */
+  image: { width: "100%", height: "100%" },
   ratingBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(15, 23, 42, 0.8)", // Semi Navy
+    top: 7,
+    right: 7,
+    backgroundColor: "rgba(15,23,42,0.8)",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 6,
+    gap: 3,
   },
-  ratingText: {
-    color: "white",
-    fontSize: 11,
-    fontWeight: "bold",
-    marginLeft: 4,
-  },
-  hotBadge: {
-    position: "absolute",
-    bottom: 8,
-    left: 8,
-    backgroundColor: "#EF4444", // Solid Red
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  hotText: {
-    color: "white",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  
-  /* JUDUL DAN INFO KETERANGAN BAWAH */
-  title: {
-    color: "#0F172A",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: "#64748B",
-    fontSize: 12,
-  },
-  
-  /* KOSONG/TIDAK KETEMU */
-  emptyContainer: {
-    marginTop: 60,
-    alignItems: "center",
-  },
-  empty: {
-    color: "#94A3B8",
-    fontSize: 16,
-    fontWeight: "500",
-  },
+  ratingText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  cardTitle: { fontSize: 13, fontWeight: "700", marginHorizontal: 8, marginBottom: 2 },
+  cardSub: { fontSize: 11, marginHorizontal: 8, marginBottom: 8 },
+
+  /* EMPTY */
+  emptyContainer: { marginTop: 80, alignItems: "center", paddingHorizontal: 32 },
+  emptyTitle: { fontSize: 17, fontWeight: "700", marginTop: 16, textAlign: "center" },
+  emptySub: { fontSize: 14, marginTop: 8, textAlign: "center" },
 });

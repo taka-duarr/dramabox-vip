@@ -10,7 +10,6 @@ import {
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeScreen from "./src/screens/HomeScreen";
-import HomeScreen2 from "./src/screens/HomeScreen2";
 import MyListScreen from "./src/screens/MyListScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
 import EpisodeScreen from "./src/screens/EpisodeScreen";
@@ -65,7 +64,6 @@ const ElegantTabBar = ({ state, descriptors, navigation }: any) => {
         const getIconName = (routeName: string, focused: boolean) => {
           switch (routeName) {
             case "HomeTab": return focused ? "film" : "film-outline";
-            case "HomeScreen2": return focused ? "play-circle" : "play-circle-outline";
             case "MyListTab": return focused ? "bookmark" : "bookmark-outline";
             case "ProfileTab": return focused ? "person" : "person-outline";
             default: return "help-circle-outline";
@@ -74,8 +72,7 @@ const ElegantTabBar = ({ state, descriptors, navigation }: any) => {
 
         const getLabel = (routeName: string) => {
           switch (routeName) {
-            case "HomeTab": return "Server 1";
-            case "HomeScreen2": return "Server 2";
+            case "HomeTab": return "Home";
             case "MyListTab": return "My List";
             case "ProfileTab": return "Profile";
             default: return "";
@@ -115,7 +112,6 @@ const MainTabNavigator = () => (
     screenOptions={{ headerShown: false }}
   >
     <Tab.Screen name="HomeTab" component={HomeScreen} />
-    <Tab.Screen name="HomeScreen2" component={HomeScreen2} />
     <Tab.Screen name="MyListTab" component={MyListScreen} />
     <Tab.Screen name="ProfileTab" component={ProfileScreen} />
   </Tab.Navigator>
@@ -167,7 +163,7 @@ const WebLayout = () => {
           onStateChange={(state) => {
             const name = getActiveRouteName(state as NavigationState);
             // Only update if it's a tab-level route (sidebar items)
-            const tabRoutes = ["HomeTab","HomeScreen2","MyListTab","ProfileTab"];
+            const tabRoutes = ["HomeTab", "MyListTab", "ProfileTab"];
             if (tabRoutes.includes(name)) {
               setCurrentRoute(name);
             }

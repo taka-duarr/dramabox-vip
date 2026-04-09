@@ -17,13 +17,7 @@ const MENU_ITEMS = [
     name: "HomeTab",
     iconActive: "film" as const,
     iconInactive: "film-outline" as const,
-    label: "Server 1",
-  },
-  {
-    name: "HomeScreen2",
-    iconActive: "play-circle" as const,
-    iconInactive: "play-circle-outline" as const,
-    label: "Server 2",
+    label: "Home",
   },
   {
     name: "MyListTab",
