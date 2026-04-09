@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
+  Platform,
+  PanResponder,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -131,13 +133,41 @@ const [showQualityModal, setShowQualityModal] = useState(false);
 
   // Toggle play/pause
   const togglePlayPause = () => {
-    if (playerIsPlaying) {
+    if (player.playing) {
       player.pause();
     } else {
       player.play();
     }
     resetAutoHideTimer();
   };
+
+  // Web Only: Global Keyboard Shortcuts (Space, ArrowLeft, ArrowRight)
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        togglePlayPause();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const dest = player.currentTime + 10;
+        player.currentTime = (durationMillis > 0 && dest > durationMillis) ? durationMillis : dest;
+        resetAutoHideTimer();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        player.currentTime = Math.max(0, player.currentTime - 10);
+        resetAutoHideTimer();
+      }
+    };
+
+    window.addEventListener("keydown", keyHandler);
+    return () => {
+      window.removeEventListener("keydown", keyHandler);
+    };
+  }, [player, durationMillis]);
 
   // Handler untuk tap di progress bar
   const handleProgressBarTap = (event: any) => {
@@ -177,6 +207,40 @@ const [showQualityModal, setShowQualityModal] = useState(false);
     }
   };
 
+  const playPreviousEpisode = () => {
+    const currentIndex = episodes.findIndex(
+      (ep) => ep.chapterId === currentEpisode.chapterId
+    );
+
+    // Kalau ada episode sebelumnya
+    if (currentIndex > 0) {
+      const prevEpisode = episodes[currentIndex - 1];
+      setCurrentEpisode(prevEpisode);
+      setPositionMillis(0);
+      resetAutoHideTimer();
+    }
+  };
+
+  // TikTok-style Swipe Gesture (Up = Next, Down = Prev)
+  const panResponder = useMemo(() =>
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Hanya respons jika swipe vertikal cukup kuat (mencegah klik biasa tertangkap)
+        return Math.abs(gestureState.dy) > 30 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 2;
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dy < -60) {
+          // Swipe Naik -> Episode Selanjutnya
+          playNextEpisode();
+        } else if (gestureState.dy > 60) {
+          // Swipe Turun -> Episode Sebelumnya
+          playPreviousEpisode();
+        }
+      },
+    }),
+    [currentEpisode] // Rekreasi PanResponder tiap episode ganti supaya closure state tidak basi
+  );
 
   // Handler untuk tap di layar (Single Tap & Double Tap Seek)
   const handleScreenTap = (event: any) => {
@@ -270,9 +334,11 @@ const [showQualityModal, setShowQualityModal] = useState(false);
          </View>
       )}
 
-      {/* FULL SCREEN TOUCH AREA - untuk mendeteksi tap */}
-      <TouchableOpacity
-        style={styles.fullScreenTouchable}
+      {/* TIKTOK SWIPE GESTURE WRAPPER */}
+      <View style={[StyleSheet.absoluteFillObject, { zIndex: 10 }]} {...panResponder.panHandlers}>
+        {/* FULL SCREEN TOUCH AREA - untuk mendeteksi tap */}
+        <TouchableOpacity
+          style={styles.fullScreenTouchable}
         activeOpacity={1}
         onPress={handleScreenTap}
         delayPressIn={0}
@@ -396,6 +462,7 @@ const [showQualityModal, setShowQualityModal] = useState(false);
           </View>
         )}
       </TouchableOpacity>
+      </View>
 
       {/* EPISODE MODAL */}
       <Modal

@@ -40,8 +40,8 @@ const SearchScreen2 = ({ navigation }: any) => {
     try {
       setLoading(true);
       const data = await getNetshortSearch(query);
-      // Netshort search response has contentInfos array
-      setResults(data.contentInfos || []);
+      // Netshort search response has searchCodeSearchResult array
+      setResults(data.searchCodeSearchResult || []);
     } catch (e) {
       console.error("Server 2 Search error:", e);
     } finally {
@@ -62,6 +62,11 @@ const SearchScreen2 = ({ navigation }: any) => {
       return `https://wsrv.nl/?url=${strippedProtocol}`;
     }
     return encoded;
+  };
+
+  const stripHtmlTags = (text?: string) => {
+    if (!text) return "";
+    return text.replace(/<[^>]*>?/gm, "");
   };
 
   return (
@@ -120,7 +125,7 @@ const SearchScreen2 = ({ navigation }: any) => {
             onPress={() =>
               navigation.navigate("Episode2", {
                 bookId: item.shortPlayId,
-                title: item.shortPlayName,
+                title: stripHtmlTags(item.shortPlayName),
               })
             }
           >
@@ -136,7 +141,7 @@ const SearchScreen2 = ({ navigation }: any) => {
             </View>
 
             <Text style={styles.title} numberOfLines={2}>
-              {item.shortPlayName}
+              {stripHtmlTags(item.shortPlayName)}
             </Text>
             <Text style={styles.subtitle} numberOfLines={1}>
               {item.scriptName || "Drama Server 2"}
