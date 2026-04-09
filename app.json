@@ -27,8 +27,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "a12e763e-fbed-4ba5-8854-a73daade4a48"
+        "projectId": "f785e29f-142b-4320-be93-84f30e9ee52c"
       }
-    }
+    },
+    "owner": "taka-duarr"
   }
 }

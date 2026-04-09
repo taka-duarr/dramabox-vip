@@ -3,7 +3,7 @@ import axiosRetry from "axios-retry";
 import { VipResponse } from "../types/drama";
 import { Episode } from "../types/episode";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.sansekai.my.id/api";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -103,7 +103,7 @@ export const getDetailDrama = async (bookId: string) => {
 };
 
 // SERVER 2: NETSHORT API
-const NETSHORT_BASE_URL = process.env.EXPO_PUBLIC_NETSHORT_BASE_URL ?? "https://netshort.sansekai.my.id/api";
+const NETSHORT_BASE_URL = process.env.EXPO_PUBLIC_NETSHORT_BASE_URL;
 
 const netshortApi = axios.create({
   baseURL: NETSHORT_BASE_URL,
@@ -129,7 +129,7 @@ axiosRetry(netshortApi, {
 });
 
 export const getNetshortForYou = async (page: number = 1): Promise<any> => {
-  return fetchWithCache(`https://netshort.sansekai.my.id/api/netshort/foryou?page=${page}`, async () => {
+  return fetchWithCache(`/netshort/foryou?page=${page}`, async () => {
     const res = await netshortApi.get(`/netshort/foryou?page=${page}`);
     return res.data;
   });
@@ -137,7 +137,7 @@ export const getNetshortForYou = async (page: number = 1): Promise<any> => {
 
 export const getNetshortSearch = async (query: string): Promise<any> => {
   const encodedQuery = encodeURIComponent(query);
-  return fetchWithCache(`https://netshort.sansekai.my.id/api/netshort/search?query=${encodedQuery}`, async () => {
+  return fetchWithCache(`/netshort/search?query=${encodedQuery}`, async () => {
     const res = await netshortApi.get(`/netshort/search?query=${encodedQuery}`);
     return res.data;
   });

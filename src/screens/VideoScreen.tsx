@@ -48,11 +48,20 @@ const [showQualityModal, setShowQualityModal] = useState(false);
       (v) => v.quality === selectedQuality
     ) ?? currentEpisode.cdnList[0].videoPathList[0];
 
-  // Bungkus URL mentah dengan Endpoint Decrypt-Stream dari Server 1 agar tidak diblokir/403
-  const decryptedVideoUrl = `https://api.sansekai.my.id/api/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+  const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const decryptedVideoUrl = `${API_BASE_URL}/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+
+  // Header spoofing untuk menghindari blokir CDN di production APK
+  const playerHeaders = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
+    "Referer": "https://www.dramabox.com/",
+  };
 
   // Inisialisasi Player Video Modern tanpa Rerender Ulang Objek
-  const player = useVideoPlayer(decryptedVideoUrl, (player) => {
+  const player = useVideoPlayer({ 
+    uri: decryptedVideoUrl, 
+    headers: playerHeaders 
+  }, (player) => {
     player.loop = false;
     player.muted = false;
     player.volume = 1.0;
@@ -62,7 +71,10 @@ const [showQualityModal, setShowQualityModal] = useState(false);
   // Saat kualitas berubah atau episode beda, gunakan replace() agar Native Object tidak hancur
   useEffect(() => {
     const backupPos = player.currentTime; // Simpan durasi terakhir sebelum ditarik
-    player.replaceAsync(decryptedVideoUrl); // Secara ajaib load Source tanpa membunuh Player secara asinkron
+    player.replaceAsync({ 
+      uri: decryptedVideoUrl, 
+      headers: playerHeaders 
+    }); // Secara ajaib load Source tanpa membunuh Player secara asinkron
     
     // Geser instan kembali ke menit terakhir secara aman
     if (backupPos > 0) {
@@ -324,8 +336,11 @@ const [showQualityModal, setShowQualityModal] = useState(false);
            <TouchableOpacity
              style={styles.retryButton}
              onPress={async () => {
-                const retryDecryptedUrl = `https://api.sansekai.my.id/api/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
-                await player.replaceAsync(retryDecryptedUrl);
+                const retryDecryptedUrl = `${API_BASE_URL}/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+                await player.replaceAsync({ 
+                   uri: retryDecryptedUrl, 
+                   headers: playerHeaders 
+                });
                 player.play();
              }}
            >
