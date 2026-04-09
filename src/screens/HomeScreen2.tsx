@@ -29,7 +29,6 @@ type TabType = "foryou";
 const HomeScreen2: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>("foryou");
-  const [searchQuery, setSearchQuery] = useState("");
   const [forYouDramas, setForYouDramas] = useState<NetshortContentInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -108,9 +107,7 @@ const HomeScreen2: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const currentData = (() => {
     const raw = forYouDramas;
-    if (!searchQuery.trim()) return raw;
-    const q = searchQuery.toLowerCase();
-    return raw.filter((d) => d.shortPlayName?.toLowerCase().includes(q));
+    return raw;
   })();
 
   const currentTabTitle = "Special Untukmu";
@@ -212,32 +209,23 @@ const HomeScreen2: React.FC<{ navigation: any }> = ({ navigation }) => {
         )}
 
         <View style={styles.headerRow}>
-          {/* Search Input dengan icon di kanan */}
-          <View
+          {/* Fake Search Bar mengarah ke SearchScreen2 */}
+          <TouchableOpacity
             style={[styles.searchBar, { backgroundColor: colors.searchBg }]}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate("Search2")}
           >
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Cari drama Server 2..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            <TouchableOpacity
-              style={styles.searchIconWrap}
-              onPress={() => {
-                if (searchQuery.trim()) setSearchQuery("");
-              }}
-              activeOpacity={0.7}
-            >
+            <Text style={[styles.searchInput, { color: colors.textMuted, lineHeight: 40 }]}>
+              Cari drama Server 2...
+            </Text>
+            <View style={styles.searchIconWrap}>
               <Ionicons
-                name={searchQuery ? "close" : "search"}
+                name="search"
                 size={18}
                 color={colors.textSecondary}
               />
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
 
