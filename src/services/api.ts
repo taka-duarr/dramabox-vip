@@ -3,8 +3,10 @@ import axiosRetry from "axios-retry";
 import { VipResponse } from "../types/drama";
 import { Episode } from "../types/episode";
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://api.sansekai.my.id/api";
+
 const api = axios.create({
-  baseURL: "https://api.sansekai.my.id/api",
+  baseURL: API_BASE_URL,
   timeout: 30000, // Timeout diperpanjang hingga 30 detik
 });
 
@@ -101,8 +103,10 @@ export const getDetailDrama = async (bookId: string) => {
 };
 
 // SERVER 2: NETSHORT API
+const NETSHORT_BASE_URL = process.env.EXPO_PUBLIC_NETSHORT_BASE_URL ?? "https://netshort.sansekai.my.id/api";
+
 const netshortApi = axios.create({
-  baseURL: "https://netshort.sansekai.my.id/api",
+  baseURL: NETSHORT_BASE_URL,
   timeout: 30000,
 });
 
