@@ -21,6 +21,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import { useTheme } from "../context/ThemeContext";
+import { API_BASE_URL } from "../services/api";
 
 interface SubtitleCue {
   startTime: number;
@@ -103,13 +104,19 @@ const [showQualityModal, setShowQualityModal] = useState(false);
   const progressBarRef = useRef<View>(null);
   const lastTapRef = useRef<number>(0);
 
-  // Untuk Server 2, videoPath ada di playVoucher.
-  const decryptedVideoUrl = ((currentEpisode as any).playVoucher || "").replace(/^http:\/\//i, "https://");
+  // MISTERI TERPECAHKAN (Lagi): Sertifikat SSL awscdn.netshort.com ditolak mentah-mentah oleh Engine Native Android.
+  // Karena kita tak bisa pakai HTTP (karena dilarang AWS), satu-satunya jalan menembusnya adalah kita MENGGUNAKAN PROXY Server 1.
+  // Kita menumpang endpoint Server 1 yang memiliki SSL tepercaya (api.sansekai.my.id) untuk menjadi jembatan!
+  const rawVideoUrl = ((currentEpisode as any).playVoucher || "").replace(/^http:\/\//i, "https://");
+  const decryptedVideoUrl = `${API_BASE_URL}/dramabox/decrypt-stream?url=${encodeURIComponent(rawVideoUrl)}`;
+
+  useEffect(() => {
+    console.log("[DEBUG] Memuat Video Server 2 (Netshort):", decryptedVideoUrl);
+  }, [decryptedVideoUrl]);
 
   // Header spoofing untuk menghindari blokir CDN di production APK
   const playerHeaders = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
-    "Referer": "https://www.dramabox.com/",
   };
 
   // Inisialisasi Player Video Modern tanpa Rerender Ulang Objek
@@ -148,10 +155,21 @@ const [showQualityModal, setShowQualityModal] = useState(false);
 
     // Fetch subtitles if available (Server 2: subtitleList)
     const subList = (currentEpisode as any).subtitleList;
-    const subUrl = subList?.[0]?.url;
+    let subUrl = subList?.[0]?.url;
+    
     if (subUrl) {
-      fetch(subUrl)
-        .then(res => res.text())
+      // Sama seperti Video, Subtitle juga akan Network Request Failed jika tidak di-proxy oleh server tepercaya.
+      subUrl = subUrl.replace(/^http:\/\//i, "https://");
+      const safeRawSubUrl = encodeURI(subUrl.replace(/比/g, "%E6%AF%94"));
+      const proxiedSubUrl = `${API_BASE_URL}/dramabox/decrypt-stream?url=${encodeURIComponent(safeRawSubUrl)}`;
+      
+      console.log("[DEBUG] Fetching Subtitle Server 2 via Proxy:", proxiedSubUrl);
+      
+      fetch(proxiedSubUrl)
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP Status " + res.status);
+          return res.text();
+        })
         .then(text => {
           const parsed = parseVTT(text);
           setCues(parsed);

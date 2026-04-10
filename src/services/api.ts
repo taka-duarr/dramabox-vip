@@ -3,7 +3,7 @@ import axiosRetry from "axios-retry";
 import { VipResponse } from "../types/drama";
 import { Episode } from "../types/episode";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.sansekai.my.id/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -45,9 +45,16 @@ const fetchWithCache = async <T>(
     return cache[url].data;
   }
 
-  const data = await fetcher();
-  cache[url] = { data, timestamp: now };
-  return data;
+  console.log(`[FETCHING API] Menarik data dari Endpoint: ${url}`);
+  try {
+    const data = await fetcher();
+    cache[url] = { data, timestamp: now };
+    console.log(`[API SUCCESS] Berhasil menarik data: ${url}`);
+    return data;
+  } catch (error) {
+    console.error(`[API ERROR] Gagal menarik data dari: ${url}`, error);
+    throw error;
+  }
 };
 
 export const getVipDrama = async (page: number = 1): Promise<VipResponse> => {
@@ -103,7 +110,7 @@ export const getDetailDrama = async (bookId: string) => {
 };
 
 // SERVER 2: NETSHORT API
-const NETSHORT_BASE_URL = process.env.EXPO_PUBLIC_NETSHORT_BASE_URL;
+export const NETSHORT_BASE_URL = process.env.EXPO_PUBLIC_NETSHORT_BASE_URL || "https://netshort.sansekai.my.id/api";
 
 const netshortApi = axios.create({
   baseURL: NETSHORT_BASE_URL,

@@ -20,8 +20,9 @@ import { useNavigation } from "@react-navigation/native";
 import { useKeepAwake } from "expo-keep-awake";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
-import { useTheme } from "../context/ThemeContext";const { width, height } = Dimensions.get("window");
-
+import { useTheme } from "../context/ThemeContext";
+import { API_BASE_URL } from "../services/api";
+const { width, height } = Dimensions.get("window");
 const VideoScreen = ({ route }: { route: RouteProp<any, any> }) => {
   useKeepAwake();
   const navigation = useNavigation();
@@ -48,8 +49,11 @@ const [showQualityModal, setShowQualityModal] = useState(false);
       (v) => v.quality === selectedQuality
     ) ?? currentEpisode.cdnList[0].videoPathList[0];
 
-  const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
   const decryptedVideoUrl = `${API_BASE_URL}/dramabox/decrypt-stream?url=${encodeURIComponent(currentVideo.videoPath)}`;
+
+  useEffect(() => {
+    console.log("[DEBUG] Memuat Video Server 1:", decryptedVideoUrl);
+  }, [decryptedVideoUrl]);
 
   // Header spoofing untuk menghindari blokir CDN di production APK
   const playerHeaders = {

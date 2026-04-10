@@ -31,6 +31,14 @@ const isWeb = Platform.OS === "web";
 
 type TabType = "vip" | "latest" | "trending" | "foryou" | "allvideo";
 
+// Helper fungsi diekstraksi ke luar agar hemat memori (tidak di-recreate tiap render)
+const safeS2Cover = (url?: string) => {
+  const enc = (url || "").replace(/比/g, "%E6%AF%94");
+  return enc.includes("awscover.netshort.com")
+    ? `https://wsrv.nl/?url=${enc.replace(/^https?:\/\//, "")}`
+    : enc;
+};
+
 const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { colors, isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>("vip");
@@ -101,13 +109,6 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         ? (s2Res.value?.contentInfos || []).slice(0, 4)
         : [];
 
-      const safeS2Cover = (url: string) => {
-        const enc = (url || "").replace(/比/g, "%E6%AF%94");
-        return enc.includes("awscover.netshort.com")
-          ? `https://wsrv.nl/?url=${enc.replace(/^https?:\/\//, "")}`
-          : enc;
-      };
-
       const s2Items: any[] = s2Raw.map((d: any) => ({
         id: d.shortPlayId,
         cover: safeS2Cover(d.shortPlayCover),
@@ -129,6 +130,8 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (s2Items[i]) merged.push(s2Items[i]);
       }
 
+      console.log(`[DEBUG] Carousel Berhasil Digabung: ${s1Items.length} (S1) + ${s2Items.length} (S2) = ${merged.length} Slide`);
+      
       setTrendingDramas(s1Res.status === "fulfilled" ? (s1Res.value as any[]) : []);
       setCarouselItems(merged);
     } catch (e) {
